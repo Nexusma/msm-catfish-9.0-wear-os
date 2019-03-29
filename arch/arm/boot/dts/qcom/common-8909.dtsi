@@ -1,0 +1,460 @@
+#include "msm8909-mtp.dtsi"
+#include "msm8909w-gpu.dtsi"
+#include "msm8909-pm8916.dtsi"
+#include "msm8909-pm8916-mtp.dtsi"
+#include "msm8909w.dtsi"
+#include "dsi-panel-rm69080-wqvga-cmd.dtsi"
+#include "dsi-panel-rm67162-wqvga-cmd.dtsi"
+#include "catfish-8909-pinctrl.dtsi"
+#include "catfish-8909-bus.dtsi"
+#include "catfish-8909-mtp.dtsi"
+
+/ {
+	bcmdhd {
+		compatible = "android,bcmdhd_wlan";
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <35 0x2008>;
+		wl_reg_on = <&msm_gpio 33 0>;/* wifi reg_on pin */
+		wl_host_wake = <&msm_gpio 35 0>;/* wifi oob pin */
+	};
+
+	bt_nitrous {
+		compatible = "goog,nitrous";
+		uart-port = <0>;
+		power-gpio = <&msm_gpio 34 0>;
+		host-wake-gpio = <&msm_gpio 31 0>;
+		host-wake-polarity = <0>;
+		dev-wake-gpio = <&msm_gpio 32 0>;
+		dev-wake-polarity = <0>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&gpio_bt_reg_on_active &gpio_bt_host_wake_active
+				&gpio_bt_dev_wake_active>;
+		pinctrl-1 = <&gpio_bt_reg_on_sleep &gpio_bt_host_wake_sleep
+				&gpio_bt_dev_wake_sleep>;
+	};
+
+	reserved-memory {
+		ramoops_mem: ramoops_region@0 {
+			reg = <0x0 0x9ff00000 0x0 0x00100000>;
+			compatible = "removed-dma-pool";
+			no-map;
+		};
+	};
+
+};
+
+&soc {
+	i2c@78b5000 { /* BLSP1 QUP1 */
+		/*linear charger*/
+		smb23x-lbc@12 {
+			compatible = "qcom,smb231-lbc";
+			reg = <0x12>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <95 2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&smb_int_default &smb_susp_default>;
+			qcom,bms-psy-name = "bms";
+			qcom,float-voltage-mv = <4400>;
+			qcom,charging-timeout = <180>;  /* 180 270 360 */
+			qcom,recharge-thresh-mv = <80>; /* select 80 or 150mv */
+			qcom,iterm-ma = <20>; /* 20 30 50 75 */
+			qcom,fastchg-ma = <300>;
+			qcom,hot-bat-decidegc = <550>;
+			qcom,warm-bat-decidegc = <450>;
+			qcom,cool-bat-decidegc = <50>;
+			qcom,cold-bat-decidegc = <(-50)>;
+			qcom,soft-temp-vfloat-comp-mv = <200>;
+			qcom,soft-temp-current-comp-ma = <50>;
+			qcom,chg-inhibit-disabled;
+			qcom,apsd-disabled;
+			qcom,thermal-mitigation = <1500 900 500 100>;
+		};
+	};
+	i2c@78ba000 { /* BLSP1 QUP6 */
+		st21nfc@08 {
+			compatible = "st,st21nfcd";
+			reg = <0x08>;
+			st,vdd_ana-supply = <&pm8916_l6>;
+			st,vcc_i2c-supply = <&pm8916_l6>;
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&gpio_nfc_rst_active &gpio_nfc_irq_active>;
+			pinctrl-1 = <&gpio_nfc_rst_sleep &gpio_nfc_irq_sleep>;
+			st,irq_gpio = <&msm_gpio 92 0x2001>;
+			st,reset_gpio = <&msm_gpio 36 0x00>;
+		};
+		/*touch*/
+		focaltech@38{
+			compatible = "focaltech,fts";
+			reg = <0x38>;
+			/*interrupt-parent = <&msm_gpio>;*/
+			/*interrupts = <65 0x2008>;*/
+			vdd-supply = <&pm8916_l17>;
+			vddio-supply = <&pm8916_l6>;
+			focaltech,reset-gpio = <&msm_gpio 23 0x00>;
+			focaltech,irq-gpio = <&msm_gpio 65 0x2>;
+			focaltech,switch-gpio = <&msm_gpio 93 0x00>;
+			focaltech,display-coords =  <0 0 400 400>;
+			focaltech,max-touch-number = <2> ;
+
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+			/*touch no need info in this project*/
+			/*
+			focaltech,have-key;
+			focaltech,key-number = <3>;
+			focaltech,keys = <139 102 158>;
+			focaltech,key-y-coord = <2000>;
+			focaltech,key-x-coords = <200 600 800>;
+			*/
+			/*focaltech,display-coords =  <0 0 720 1280>;
+			focaltech,key-y-coord = <1350>;
+			focaltech,key-x-coords = <180 350 540>;*/
+		};
+
+		it7259@46 {
+			compatible = "ite,it7259_ts";
+			reg = <0x46>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <65 0x2008>;
+			avdd-supply = <&pm8916_l17>;
+			vdd-supply = <&pm8916_l6>;
+			/* pins used by touchscreen */
+
+			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
+						"pmx_ts_release";
+			pinctrl-0 = <&ts_int_active &ts_ite_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_ite_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+
+			ite,reset-gpio = <&msm_gpio 23 0x00>;
+			ite,irq-gpio = <&msm_gpio 65 0x2008>;
+			ite,switch-gpio = <&msm_gpio 93 0x00>;
+			ite,panel-coords = <0 0 400 400>;
+			ite,display-coords = <0 0 400 400>;
+			ite,reset-delay = <20>;
+			ite,num-fingers = <2>;
+			ite,wakeup;
+			ite,palm-detect-en;
+			ite,palm-detect-keycode = <142>;
+			ite,fw-name = "it7260_fw_050D0014.bin";
+			ite,cfg-name = "it7260_cfg_62011E01.bin";
+			ite,avdd-lpm-cur = <3000>;
+		};
+
+		drv2605@5a {
+			compatible = "ti,drv2605";
+			reg = <0x5a>;
+			drv2605,en_gpio = <&msm_gpio 26 0x00>;
+		};
+	};
+	spi@78b9000 { /* BLSP1 QUP5 */
+		gps@0 {
+			compatible = "ssp,BCM4773";
+			reg = <0>;
+			spi-max-frequency = <20000000>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <94 0x4>;
+			spi-cpol;
+			spi-cpha;
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&gps_mcu_req_default &gps_mcu_resp_default
+				&gps_host_req_default &gpio_gps_on_active>;
+			pinctrl-1 = <&gps_mcu_req_sleep &gps_mcu_resp_sleep
+				&gps_host_req_sleep &gpio_gps_on_sleep>;
+			ssp-host-req = <&msm_gpio 94 0x4>;
+			ssp-mcu-req = <&msm_gpio 27 0>;
+			ssp-mcu-resp = <&msm_gpio 28 0>;
+			ssp-vdd-pmu-in = <&msm_gpio 30 0>;
+			ssp-nstandby = <&msm_gpio 74 0>;
+
+		};
+	};
+	gpio_keys {
+		/delete-node/ camera_focus;
+		/delete-node/ camera_snapshot;
+		/delete-node/ vol_up;
+		multi_function_key {
+			label = "multi_function_key";
+			gpios = <&msm_gpio 98 0x1>;
+			linux,input-type = <1>;
+			linux,code = <139>; /*KEY_MENU*/
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+	};
+
+};
+
+&spi_4 { /* BLSP1 QUP4 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	sensorhub@0 {
+		compatible = "nanohub,nanohub_spi";
+		reg = <0>;
+
+		spi-max-frequency = <8000000>;
+		spi-cpol;
+		spi-cpha;
+
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <97 0x2008>;
+		sensorhub,irq1-gpio   = <&msm_gpio 97 0x2008>;
+		sensorhub,irq2-gpio   = <&msm_gpio 96 0x2008>;
+		sensorhub,irq3-gpio   = <&msm_gpio 90 0x2008>;
+		sensorhub,wakeup-gpio = <&msm_gpio 71 0>;
+		sensorhub,spi-cs-gpio = <&msm_gpio 14 0>;
+		sensorhub,nreset-gpio = <&msm_gpio 72 0>;
+		sensorhub,nreset_active_high;
+		sensorhub,boot0-gpio  = <&msm_gpio 70 0>;
+		sensorhub,hub-flag-int-gpio  = <&msm_gpio 73 0>;
+		sensorhub,mode-flag1-gpio  = <&msm_gpio 8 0>;
+		sensorhub,mode-flag2-gpio  = <&msm_gpio 9 0>;
+		sensorhub,mode-flag3-gpio  = <&msm_gpio 99 0>;
+		sensorhub,mode-flag4-gpio  = <&msm_gpio 110 0>;
+
+		sensorhub,bl-addr = <0x08000000>;
+		sensorhub,kernel-addr = <0x0800C000>;
+		sensorhub,flash-banks = <0 0x08000000 0x04000>,
+			<3 0x0800C000 0x04000>,
+			<4 0x08010000 0x10000>,
+			<5 0x08020000 0x20000>,
+			<6 0x08040000 0x20000>;
+
+		sensorhub,num-flash-banks = <5>;
+		sensorhub,shared-flash-banks =  <2 0x08008000 0x04000>;
+		sensorhub,num-shared-flash-banks = <1>;
+		sensorhub,custom-flash-addr = <0x08060000>;
+		sensorhub,custom-flash-len = <0x20000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sensorhub_ctrl_active>;
+		status = "ok";
+	};
+};
+
+&msm_gpio {
+	/delete-node/ smb_int_pin;
+	smb_int_default: smb_int_default {
+		mux {
+			pins = "gpio95";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio95";
+			drive-strength = <2>;   /* 2 MA */
+			bias-pull-up;		   /* PULL UP*/
+		};
+	};
+
+	smb_susp_default: smb_susp_default {
+		mux {
+			pins = "gpio58";
+			function ="gpio";
+		};
+		config {
+			pins = "gpio58";
+			drive-strength = <2>;   /* 2 MA */
+			bias-pull-up;		   /* PULL UP*/
+			output-high;
+		};
+	};
+};
+
+&i2c_1 {
+	status = "ok";
+};
+&i2c_6 {
+	status = "ok";
+};
+&spi_5 {
+	status = "ok";
+};
+&blsp1_uart2 {
+	status = "ok";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&blsp1_uart2_active>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
+};
+&pm8916_tombak_dig{
+	aw87318-en-gpio = <&msm_gpio 22 0>;
+};
+&blsp1_uart1 {
+	status = "disabled";
+};
+&audio_codec_mtp {
+	qcom,model = "msm8909-pm8916-snd-card";
+	qcom,msm-ext-pa = "quaternary";
+	qcom,audio-routing =
+		"RX_BIAS", "MCLK",
+		"SPK_RX_BIAS", "MCLK",
+		"INT_LDO_H", "MCLK",
+		"MIC BIAS External", "Handset Mic",
+		"MIC BIAS Internal2", "Headset Mic",
+		"MIC BIAS External", "Secondary Mic",
+		"AMIC1", "MIC BIAS External",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External",
+		"DMIC1", "MIC BIAS Internal1",
+		"MIC BIAS Internal1", "Digital Mic1",
+		"DMIC2", "MIC BIAS Internal1",
+		"MIC BIAS Internal1", "Digital Mic2";
+	qcom,msm-gpios =
+		"pri_i2s",
+		"us_eu_gpio",
+		"cdc_dmic_lines",
+		"quat_i2s";
+	qcom,pinctrl-names =
+		"all_off",
+		"pri_i2s_act",
+		"us_eu_gpio_act",
+		"pri_i2s_us_eu_gpio_act",
+		"cdc_lines_dmic_act",
+		"pri_i2s_dmic_lines_act",
+		"us_eu_gpio_dmic_lines_act",
+		"pri_i2s_us_eu_gpio_dmic_lines_act",
+		"quat_i2s_active",
+		"quat_i2s_pri_i2s",
+		"quat_i2s_pri_i2s_us_eu",
+		"quat_i2s_pri_i2s_us_en_dmic",
+		"quat_i2s_us_eu",
+		"quat_i2s_us_eu_dmic",
+		"quat_i2s_dmic",
+		"quat_i2s_dmic_pri_i2s";
+	pinctrl-names =
+		"all_off",
+		"pri_i2s_act",
+		"us_eu_gpio_act",
+		"pri_i2s_us_eu_gpio_act",
+		"cdc_lines_dmic_act",
+		"pri_i2s_dmic_lines_act",
+		"us_eu_gpio_dmic_lines_act",
+		"pri_i2s_us_eu_gpio_dmic_lines_act",
+		"quat_i2s_active",
+		"quat_i2s_pri_i2s",
+		"quat_i2s_pri_i2s_us_eu",
+		"quat_i2s_pri_i2s_us_en_dmic",
+		"quat_i2s_us_eu",
+		"quat_i2s_us_eu_dmic",
+		"quat_i2s_dmic",
+		"quat_i2s_dmic_pri_i2s";
+	pinctrl-0 = <&cdc_pdm_lines_sus &cross_conn_det_sus
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-1 = <&cdc_pdm_lines_act &cross_conn_det_sus
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-2 = <&cdc_pdm_lines_sus &cross_conn_det_act
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-3 = <&cdc_pdm_lines_act &cross_conn_det_act
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-4 = <&cdc_pdm_lines_sus &cross_conn_det_sus
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-5 = <&cdc_pdm_lines_act &cross_conn_det_sus
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-6 = <&cdc_pdm_lines_sus &cross_conn_det_act
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-7 = <&cdc_pdm_lines_act &cross_conn_det_act
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_sus>;
+	pinctrl-8 = <&cdc_pdm_lines_sus &cross_conn_det_sus
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-9 = <&cdc_pdm_lines_act &cross_conn_det_sus
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-10 = <&cdc_pdm_lines_act &cross_conn_det_act
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-11 = <&cdc_pdm_lines_act &cross_conn_det_act
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-12 = <&cdc_pdm_lines_sus &cross_conn_det_act
+			&cdc_dmic_lines_sus &cdc_dmic_lines_sus_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-13 = <&cdc_pdm_lines_sus &cross_conn_det_act
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-14 = <&cdc_pdm_lines_sus &cross_conn_det_sus
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_act>;
+	pinctrl-15 = <&cdc_pdm_lines_act &cross_conn_det_sus
+			&cdc_dmic_lines_act &cdc_dmic_lines_act_ex
+			&ext_cdc_tlmm_lines_act>;
+	asoc-codec = <&stub_codec>, <&pm8916_tombak_dig>;
+};
+&dai_mi2s3{
+	qcom,msm-mi2s-rx-lines = <2>;
+	qcom,msm-mi2s-tx-lines = <1>;
+};
+&spmi_bus {
+	qcom,pm8916@0 {
+		pm8916_pon: qcom,power-on@800 {
+			compatible = "qcom,qpnp-power-on";
+			qcom,pon_1 {
+				qcom,support-reset = <1>;
+				qcom,s1-timer = <6720>;
+				qcom,s2-timer = <1000>;
+				qcom,s2-type = <7>;
+			};
+		};
+	};
+};
+&mdss_mdp {
+	/delete-node/ dsi_sim_vid;
+	/delete-node/ dsi_sim_cmd;
+	/delete-node/ dsi_auo_400p_cmd;
+	/delete-node/ dsi_hx8394d_720_vid;
+	/delete-node/ dsi_sharp_qhd_vid;
+	/delete-node/ dsi_truly_wvga_cmd;
+	/delete-node/ dsi_hx8394d_qhd_vid;
+	/delete-node/ dsi_hx8379a_fwvga_skua_vid;
+	/delete-node/ dsi_ili9806e_fwvga_video;
+	/delete-node/ dsi_hx8379c_fwvga_video;
+	/delete-node/ dsi_hx8394d_480_vid;
+	/delete-node/ dsi_auo_qvga_cmd;
+	/delete-node/ dsi_auo_cx_qvga_cmd;
+	/delete-node/ si_auo_400p_cmd;
+};
+
+&vendor_fstab{
+	fsmgr_flags = "wait";
+};
+&system_fstab{
+	fsmgr_flags = "wait";
+};
+
+&soc {
+	/delete-node/ qcom,msm-ssc-sensors;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_rm67162_wqvga_cmd>;
+	/delete-property/ qcom,platform-bklight-en-gpio;
+};
+
+&dsi_rm67162_wqvga_cmd{
+	qcom,cont-splash-enabled;
+};
+
+&dsi_rm69080_wqvga_cmd{
+	qcom,cont-splash-enabled;
+};
+&qcom_seecom {
+	reg = <0x87a00000 0x200000>;
+};
+
+&usb_otg {
+	qcom,floated-charger-enable = <1>;
+};
+
+&spi_4{
+	status = "ok";
+};
